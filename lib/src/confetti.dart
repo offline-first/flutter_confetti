@@ -133,7 +133,7 @@ class _ConfettiWidgetState extends State<ConfettiWidget>
 
   late AnimationController _animController;
   late Animation<double> _animation;
-  late ParticleSystem _particleSystem;
+  ParticleSystem? _particleSystem;
 
   /// Keeps track of emition position on screen layout changes
   Offset? _emitterPosition;
@@ -146,7 +146,14 @@ class _ConfettiWidgetState extends State<ConfettiWidget>
   void initState() {
     super.initState();
     widget.confettiController.addListener(_handleChange);
+    _updateConfig();
+    _initAnimation();
 
+  }
+
+  void _updateConfig(){
+    debugPrint("_updateConfig");
+    _particleSystem?.removeListener(_particleSystemListener);
     _particleSystem = ParticleSystem(
         emissionFrequency: widget.emissionFrequency,
         numberOfParticles: widget.numberOfParticles,
@@ -161,9 +168,31 @@ class _ConfettiWidgetState extends State<ConfettiWidget>
         particleDrag: widget.particleDrag,
         createParticlePath: widget.createParticlePath);
 
-    _particleSystem.addListener(_particleSystemListener);
+    _particleSystem!.addListener(_particleSystemListener);
 
-    _initAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant ConfettiWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    debugPrint('confetti.didUpdateWidget....');
+    if(
+      widget.maxBlastForce != oldWidget.maxBlastForce
+      || widget.numberOfParticles != oldWidget.numberOfParticles
+    ){
+      _forceUpdateSystem();
+    }
+
+  }
+
+  _forceUpdateSystem(){
+    _updateConfig();
+    //_particleSystem!.update();
+
+    if (widget.confettiController.state == ConfettiControllerState.playing) {
+      _startAnimation();
+      _startEmission();
+    }
   }
 
   void _initAnimation() {
@@ -191,11 +220,11 @@ class _ConfettiWidgetState extends State<ConfettiWidget>
   }
 
   void _animationListener() {
-    if (_particleSystem.particleSystemStatus == ParticleSystemStatus.finished) {
+    if (_particleSystem!.particleSystemStatus == ParticleSystemStatus.finished) {
       _animController.stop();
       return;
     }
-    _particleSystem.update();
+    _particleSystem!.update();
   }
 
   void _animationStatusListener(AnimationStatus status) {
@@ -208,25 +237,25 @@ class _ConfettiWidgetState extends State<ConfettiWidget>
   }
 
   void _particleSystemListener() {
-    if (_particleSystem.particleSystemStatus == ParticleSystemStatus.finished) {
+    if (_particleSystem!.particleSystemStatus == ParticleSystemStatus.finished) {
       _stopAnimation();
     }
   }
 
   void _startEmission() {
-    _particleSystem.startParticleEmission();
+    _particleSystem!.startParticleEmission();
   }
 
   void _stopEmission() {
-    if (_particleSystem.particleSystemStatus == ParticleSystemStatus.stopped) {
+    if (_particleSystem!.particleSystemStatus == ParticleSystemStatus.stopped) {
       return;
     }
-    _particleSystem.stopParticleEmission();
+    _particleSystem!.stopParticleEmission();
   }
 
   void _startAnimation() {
     // Make sure widgets are built before setting screen size and position
-    WidgetsBinding.instance!.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _setScreenSize();
         _setEmitterPosition();
@@ -246,12 +275,12 @@ class _ConfettiWidgetState extends State<ConfettiWidget>
 
   void _setScreenSize() {
     _screenSize = _getScreenSize();
-    _particleSystem.screenSize = _screenSize;
+    _particleSystem!.screenSize = _screenSize;
   }
 
   void _setEmitterPosition() {
     _emitterPosition = _getContainerPosition();
-    _particleSystem.particleSystemPosition = _emitterPosition;
+    _particleSystem!.particleSystemPosition = _emitterPosition;
   }
 
   Offset _getContainerPosition() {
@@ -289,7 +318,7 @@ class _ConfettiWidgetState extends State<ConfettiWidget>
         key: _particleSystemKey,
         foregroundPainter: ParticlePainter(
           _animController,
-          particles: _particleSystem.particles,
+          particles: _particleSystem!.particles,
           paintEmitterTarget: widget.displayTarget,
         ),
         child: widget.child,
@@ -302,7 +331,7 @@ class _ConfettiWidgetState extends State<ConfettiWidget>
     widget.confettiController.stop();
     _animController.dispose();
     widget.confettiController.removeListener(_handleChange);
-    _particleSystem.removeListener(_particleSystemListener);
+    _particleSystem!.removeListener(_particleSystemListener);
     super.dispose();
   }
 }
